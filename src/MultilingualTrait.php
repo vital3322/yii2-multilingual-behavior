@@ -7,8 +7,6 @@ use yii\db\ActiveQuery;
 /**
  * Multilingual trait.
  * Modify ActiveRecord query for multilingual support
- *
- * @mixin ActiveQuery
  */
 trait MultilingualTrait
 {
@@ -19,19 +17,17 @@ trait MultilingualTrait
 
     /**
      * Scope for querying by languages
-     *
-     * @param string $language
-     * @param bool   $abridge
-     *
+     * @param $language
+     * @param $abridge
      * @return $this
      */
     public function localized($language = null, $abridge = true)
     {
-        $language = $language ?: Yii::$app->language;
+        if (!$language)
+            $language = Yii::$app->language;
 
         if (!isset($this->with['translations'])) {
             $this->with(['translation' => function ($query) use ($language, $abridge) {
-                /** @var ActiveQuery $query */
                 $query->where([$this->languageField => $abridge ? substr($language, 0, 2) : $language]);
             }]);
         }
@@ -51,4 +47,9 @@ trait MultilingualTrait
         $this->with('translations');
         return $this;
     }
+
+    /**
+     * @return \yii\db\ActiveQuery
+     */
+    abstract public function with();
 }

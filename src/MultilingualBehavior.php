@@ -1,11 +1,10 @@
 <?php
-
 namespace omgdef\multilingual;
 
 use Yii;
 use yii\base\Behavior;
-use yii\base\InvalidConfigException;
 use yii\base\UnknownPropertyException;
+use yii\base\InvalidConfigException;
 use yii\db\ActiveQuery;
 use yii\db\ActiveRecord;
 use yii\helpers\Inflector;
@@ -335,6 +334,8 @@ class MultilingualBehavior extends Behavior
         if ($owner->isRelationPopulated('translations')) {
             $translations = $this->indexByLanguage($owner->getRelatedRecords()['translations']);
             $this->saveTranslations($translations);
+        } elseif($owner->isRelationPopulated('translation')) {
+            $this->saveTranslation($owner->translation);
         }
     }
 
@@ -388,13 +389,34 @@ class MultilingualBehavior extends Behavior
         }
     }
 
+    private function saveTranslation($translation)
+    {
+        $owner = $this->owner;
+
+        if(!isset($translation)) {
+            $translation = new $this->langClassName;
+            $translation->{$this->languageField} = $this->getLanguageBaseName($owner->lang);
+            $translation->{$this->langForeignKey} = $owner->getPrimaryKey();
+        }
+
+        foreach ($this->attributes as $attribute) {
+            $value = $this->getLangAttribute($attribute, $translation->language);
+
+            if ($value !== null) {
+                $field = $this->localizedPrefix . $attribute;
+                $translation->$field = $value;
+            }
+        }
+        $translation->save();
+    }
+
     /**
      * @inheritdoc
      */
     public function canGetProperty($name, $checkVars = true)
     {
         return method_exists($this, 'get' . $name) || $checkVars && property_exists($this, $name)
-            || $this->hasLangAttribute($name);
+        || $this->hasLangAttribute($name);
     }
 
     /**
@@ -478,19 +500,15 @@ class MultilingualBehavior extends Behavior
 
     /**
      * @param $records
-     *
      * @return array
-     * @throws InvalidConfigException
      */
-    protected function indexByLanguage(array $records)
+    protected function indexByLanguage($records)
     {
-        $sorted = [];
+        $sorted = array();
         foreach ($records as $record) {
             $sorted[$record->{$this->languageField}] = $record;
         }
-
         unset($records);
-
         return $sorted;
     }
 
